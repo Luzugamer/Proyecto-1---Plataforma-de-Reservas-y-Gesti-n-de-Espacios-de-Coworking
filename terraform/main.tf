@@ -17,7 +17,7 @@ resource "render_web_service" "backend_api" {
   runtime_source = {
     native_runtime = {
       runtime       = "node"
-      build_command = "pnpm install && pnpm prisma:generate && pnpm prisma:push && pnpm prisma:seed && pnpm build"
+      build_command = "pnpm install && pnpm prisma:generate && pnpm build"
       repo_url      = var.github_repo_url
       branch        = var.github_branch
       auto_deploy   = true
