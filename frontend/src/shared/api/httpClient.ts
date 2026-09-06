@@ -1,6 +1,8 @@
 import { parseErrorResponse, AppApiError } from './errorEnvelope';
 
-const BASE_URL = typeof window !== 'undefined' ? '/api/v1' : 'http://localhost:5173/api/v1';
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' ? '/api/v1' : 'http://localhost:5173/api/v1');
 
 // Almacenamiento seguro en memoria del access token
 let inMemoryAccessToken: string | null = null;

@@ -45,6 +45,15 @@ export function buildApp() {
   // Handler de errores global
   app.setErrorHandler(errorHandler);
 
+  // Ruta raíz informativa
+  app.get('/', async () => ({
+    name: 'Plataforma de Reservas y Gestión de Espacios de Coworking API',
+    status: 'online',
+    version: 'v1',
+    health: '/api/v1/health',
+    documentation: '/api/v1',
+  }));
+
   // Registro de rutas API v1
   app.register(
     async (apiV1) => {
