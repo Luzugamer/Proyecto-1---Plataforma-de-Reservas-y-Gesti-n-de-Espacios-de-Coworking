@@ -14,6 +14,8 @@ export const ResourceList: React.FC<ResourceListProps> = ({
   isLoading,
   onOpenAdminBlock,
 }) => {
+  const safeResources = Array.isArray(resources) ? resources : [];
+
   if (isLoading) {
     return (
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -33,7 +35,7 @@ export const ResourceList: React.FC<ResourceListProps> = ({
     );
   }
 
-  if (resources.length === 0) {
+  if (safeResources.length === 0) {
     return (
       <div className="flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
@@ -49,7 +51,7 @@ export const ResourceList: React.FC<ResourceListProps> = ({
 
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {resources.map((resource) => (
+      {safeResources.map((resource) => (
         <ResourceCard
           key={resource.id}
           resource={resource}

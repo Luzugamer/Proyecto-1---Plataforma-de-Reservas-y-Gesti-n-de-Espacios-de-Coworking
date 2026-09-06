@@ -29,11 +29,14 @@ export const ResourceDetailPage: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [confirmedReservation, setConfirmedReservation] = useState<ReservationResponse | null>(null);
 
-  const { data: sites = [] } = useSites();
-  const { data: allResources = [] } = useResources('site_01');
-  const { data: site2Resources = [] } = useResources('site_02');
+  const { data: rawSites } = useSites();
+  const sites = Array.isArray(rawSites) ? rawSites : [];
+  const { data: rawRes1 } = useResources('site_01');
+  const { data: rawRes2 } = useResources('site_02');
 
-  const combinedResources = [...allResources, ...site2Resources];
+  const res1List = Array.isArray(rawRes1) ? rawRes1 : [];
+  const res2List = Array.isArray(rawRes2) ? rawRes2 : [];
+  const combinedResources = [...res1List, ...res2List];
   const resource = combinedResources.find((r) => r.id === resourceId) || {
     id: resourceId || 'res_01',
     siteId: 'site_01',

@@ -15,7 +15,8 @@ export const SiteSelector: React.FC<SiteSelectorProps> = ({
   onSelectSite,
   isLoading,
 }) => {
-  const selectedSite = sites.find((s) => s.id === selectedSiteId);
+  const safeSites = Array.isArray(sites) ? sites : [];
+  const selectedSite = safeSites.find((s) => s.id === selectedSiteId);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -33,7 +34,7 @@ export const SiteSelector: React.FC<SiteSelectorProps> = ({
               disabled={isLoading}
               className="h-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition-all focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed"
             >
-              {sites.map((site) => (
+              {safeSites.map((site) => (
                 <option key={site.id} value={site.id}>
                   {site.name}
                 </option>

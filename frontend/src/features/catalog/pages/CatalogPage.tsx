@@ -17,27 +17,29 @@ import { LogIn, UserPlus, AlertTriangle } from 'lucide-react';
 export const CatalogPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
-  const { data: sites = [], isLoading: isLoadingSites, error: sitesError } = useSites();
-  const [selectedSiteId, setSelectedSiteId] = useState<string>('site_01');
+  const { data: rawSites, isLoading: isLoadingSites, error: sitesError } = useSites();
+  const sites = Array.isArray(rawSites) ? rawSites : [];
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [selectedType, setSelectedType] = useState<ResourceType | 'ALL'>('ALL');
 
   const [blockingResource, setBlockingResource] = useState<Resource | null>(null);
 
   // Auto-seleccionar primera sede al cargar si no está seleccionada
   React.useEffect(() => {
-    if (sites.length > 0 && !sites.some((s) => s.id === selectedSiteId)) {
+    if (sites.length > 0 && (!selectedSiteId || !sites.some((s) => s.id === selectedSiteId))) {
       setSelectedSiteId(sites[0].id);
     }
   }, [sites, selectedSiteId]);
 
   const {
-    data: resources = [],
+    data: rawResources,
     isLoading: isLoadingResources,
     error: resourcesError,
   } = useResources(
     selectedSiteId,
     selectedType === 'ALL' ? undefined : selectedType
   );
+  const resources = Array.isArray(rawResources) ? rawResources : [];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
