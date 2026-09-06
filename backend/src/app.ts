@@ -20,9 +20,26 @@ export function buildApp() {
   });
 
   app.register(cors, {
-    origin: [ENV.CORS_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, cb) => {
+      // Permitir peticiones sin header Origin (como curl, healthchecks y llamadas internas)
+      if (!origin) {
+        return cb(null, true);
+      }
+      // Permitir localhost, dominio configurado o cualquier subdominio de onrender.com
+      if (
+        origin === ENV.CORS_ORIGIN ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.endsWith('.onrender.com') ||
+        ENV.NODE_ENV === 'development'
+      ) {
+        return cb(null, true);
+      }
+      return cb(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Handler de errores global

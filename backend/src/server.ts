@@ -10,13 +10,16 @@ async function start() {
     await prisma.$connect();
     console.log('📦 Conexión a PostgreSQL ("1° APP") establecida con éxito.');
 
+    const port = Number(process.env.PORT) || ENV.PORT || 4000;
+    const host = '0.0.0.0';
+
     await app.listen({
-      port: ENV.PORT,
-      host: ENV.HOST,
+      port,
+      host,
     });
 
-    console.log(`🚀 Servidor Fastify corriendo en http://${ENV.HOST}:${ENV.PORT}`);
-    console.log(`📡 Rutas base: http://localhost:${ENV.PORT}/api/v1`);
+    console.log(`🚀 Servidor Fastify corriendo en http://${host}:${port}`);
+    console.log(`📡 Rutas base: http://${host}:${port}/api/v1`);
   } catch (err) {
     console.error('❌ Error al iniciar el servidor:', err);
     await prisma.$disconnect();
