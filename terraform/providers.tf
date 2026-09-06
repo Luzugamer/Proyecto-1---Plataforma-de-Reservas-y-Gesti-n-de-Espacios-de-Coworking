@@ -7,7 +7,7 @@ terraform {
     }
     render = {
       source  = "render-oss/render"
-      version = "~> 1.2.0"
+      version = ">= 1.9.0"
     }
   }
 }
