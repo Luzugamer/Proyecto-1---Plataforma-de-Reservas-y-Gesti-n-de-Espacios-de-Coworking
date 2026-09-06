@@ -1,0 +1,254 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  MEMBER
+  SITE_ADMIN
+  RECEPTIONIST
+}
+
+enum ResourceType {
+  HOT_DESK
+  DEDICATED_DESK
+  MEETING_ROOM
+  EVENT_SPACE
+}
+
+enum HoldStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PlanTier {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum TransactionType {
+  MONTHLY_ALLOWANCE
+  RESERVATION_CHARGE
+  CANCELLATION_REFUND
+  TOPUP_PURCHASE
+  PLAN_UPGRADE_CREDIT
+  ADMIN_ADJUSTMENT
+}
+
+model User {
+  id                   String                @id @default(uuid())
+  name                 String
+  email                String                @unique
+  passwordHash         String
+  role                 UserRole              @default(MEMBER)
+  failedLoginAttempts  Int                   @default(0)
+  lockedUntil          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  refreshTokens        RefreshToken[]
+  resetTokens          PasswordResetToken[]
+  holds                Hold[]
+  reservations         Reservation[]
+  subscription         Subscription?
+  wallet               Wallet?
+  transactions         WalletTransaction[]
+  maintenanceBlocks    MaintenanceBlock[]    @relation("BlockCreator")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model Site {
+  id          String     @id @default(uuid())
+  name        String
+  address     String
+  city        String
+  openingTime String     @default("08:00") // Formato HH:mm
+  closingTime String     @default("22:00") // Formato HH:mm
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  resources   Resource[]
+
+  @@map("sites")
+}
+
+model Resource {
+  id                String             @id @default(uuid())
+  siteId            String
+  site              Site               @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name              String
+  type              ResourceType
+  capacity          Int                @default(1)
+  creditsPerHour    Int                @default(1)
+  amenities         String[]           @default([])
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  holds             Hold[]
+  reservations      Reservation[]
+  maintenanceBlocks MaintenanceBlock[]
+
+  @@map("resources")
+}
+
+model MaintenanceBlock {
+  id                        String   @id @default(uuid())
+  resourceId                String
+  resource                  Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  startsAt                  DateTime
+  endsAt                    DateTime
+  reason                    String
+  cancelledReservationsCount Int      @default(0)
+  createdByUserId           String
+  createdByUser             User     @relation("BlockCreator", fields: [createdByUserId], references: [id])
+  createdAt                 DateTime @default(now())
+
+  @@map("maintenance_blocks")
+}
+
+model Hold {
+  id              String     @id @default(uuid())
+  resourceId      String
+  resource        Resource   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startsAt        DateTime
+  endsAt          DateTime
+  creditsRequired Int
+  expiresAt       DateTime
+  status          HoldStatus @default(ACTIVE)
+  createdAt       DateTime   @default(now())
+
+  @@index([resourceId, startsAt, endsAt])
+  @@map("holds")
+}
+
+model Reservation {
+  id              String            @id @default(uuid())
+  resourceId      String
+  resource        Resource          @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startsAt        DateTime
+  endsAt          DateTime
+  status          ReservationStatus @default(CONFIRMED)
+  creditsDeducted Int
+  refundedCredits Int               @default(0)
+  checkedInAt     DateTime?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([resourceId, startsAt, endsAt])
+  @@index([userId, status])
+  @@map("reservations")
+}
+
+model MembershipPlan {
+  id             PlanTier  @id
+  name           String
+  monthlyCredits Int
+  pricePerMonth  Float
+  currency       String    @default("USD")
+  description    String
+  features       String[]  @default([])
+  isPopular      Boolean   @default(false)
+
+  subscriptions  Subscription[]
+
+  @@map("membership_plans")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId             PlanTier
+  plan               MembershipPlan     @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime           @default(now())
+  currentPeriodEnd   DateTime
+  autoRenew          Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Wallet {
+  id           String              @id @default(uuid())
+  userId       String              @unique
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Int                 @default(10)
+  updatedAt    DateTime            @updatedAt
+
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id           String          @id @default(uuid())
+  walletId     String
+  wallet       Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         TransactionType
+  amount       Int             // Positivo (+) o negativo (-)
+  balanceAfter Int
+  description  String
+  referenceId  String?
+  createdAt    DateTime        @default(now())
+
+  @@index([userId, createdAt])
+  @@map("wallet_transactions")
+}
