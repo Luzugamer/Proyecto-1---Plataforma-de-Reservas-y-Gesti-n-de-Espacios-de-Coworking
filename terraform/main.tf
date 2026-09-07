@@ -7,11 +7,10 @@ resource "neon_project" "coworking_db_project" {
 }
 
 resource "render_web_service" "backend_api" {
-  name               = "coworking-backend-api"
-  plan               = var.render_backend_plan
-  region             = "ohio"
-  start_command      = "pnpm --filter backend start"
-  pre_deploy_command = "pnpm --filter backend prisma:migrate:deploy"
+  name          = "coworking-backend-api"
+  plan          = var.render_backend_plan
+  region        = "ohio"
+  start_command = "pnpm --filter backend prisma:migrate:deploy && pnpm --filter backend start"
 
   runtime_source = {
     native_runtime = {

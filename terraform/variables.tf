@@ -35,11 +35,11 @@ variable "github_branch" {
 
 variable "render_backend_plan" {
   type        = string
-  description = "Plan de Render compatible con el provider (starter o superior)"
-  default     = "starter"
+  description = "Plan del Web Service de Render"
+  default     = "free"
 
   validation {
-    condition     = contains(["starter", "standard", "pro", "pro_plus", "pro_max", "pro_ultra"], var.render_backend_plan)
-    error_message = "render_backend_plan debe ser un plan de web service aceptado por render-oss/render 1.9.1."
+    condition     = contains(["free", "starter", "standard", "pro", "pro_plus", "pro_max", "pro_ultra"], var.render_backend_plan)
+    error_message = "render_backend_plan debe ser un plan de Web Service válido en Render."
   }
 }
