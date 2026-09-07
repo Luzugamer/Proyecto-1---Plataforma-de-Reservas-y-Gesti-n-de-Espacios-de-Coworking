@@ -15,7 +15,7 @@ resource "render_web_service" "backend_api" {
   runtime_source = {
     native_runtime = {
       runtime       = "node"
-      build_command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter backend prisma:generate && pnpm --filter backend build"
+      build_command = "pnpm install --frozen-lockfile --prod=false && pnpm --filter backend prisma:generate && pnpm --filter backend build"
       repo_url      = var.github_repo_url
       branch        = var.github_branch
       auto_deploy   = true
@@ -28,16 +28,16 @@ resource "render_web_service" "backend_api" {
   health_check_path = "/api/v1/health"
 
   env_vars = {
-    NODE_ENV = { value = "production" }
-    NODE_VERSION = { value = "22" }
+    NODE_ENV          = { value = "production" }
+    NODE_VERSION      = { value = "22" }
     JWT_ACCESS_SECRET = { generate_value = true }
-    DATABASE_URL = { value = neon_project.coworking_db_project.connection_uri }
+    DATABASE_URL      = { value = neon_project.coworking_db_project.connection_uri }
   }
 }
 
 resource "render_static_site" "frontend_spa" {
   name          = "coworking-frontend-app"
-  build_command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter frontend build"
+  build_command = "pnpm install --frozen-lockfile --prod=false && pnpm --filter frontend build"
   publish_path  = "frontend/dist"
   auto_deploy   = true
   repo_url      = var.github_repo_url
@@ -48,13 +48,21 @@ resource "render_static_site" "frontend_spa" {
   }
 
   env_vars = {
-    VITE_USE_MSW       = { value = "false" }
-    VITE_API_BASE_URL  = { value = "${render_web_service.backend_api.url}/api/v1" }
+    NODE_VERSION      = { value = "22" }
+    VITE_USE_MSW      = { value = "false" }
+    VITE_API_BASE_URL = { value = "${render_web_service.backend_api.url}/api/v1" }
   }
 
-  routes = [{
-    type        = "rewrite"
-    source      = "/*"
-    destination = "/index.html"
-  }]
+  routes = [
+    {
+      type        = "rewrite"
+      source      = "/"
+      destination = "/index.html"
+    },
+    {
+      type        = "rewrite"
+      source      = "/*"
+      destination = "/index.html"
+    }
+  ]
 }
