@@ -8,7 +8,7 @@
     "build:backend": "pnpm --filter backend build",
     "build:frontend": "pnpm --filter frontend build",
     "build": "pnpm --filter backend build && pnpm --filter frontend build",
-    "test:backend": "pnpm --filter backend exec tsx src/tests/runBackendDiagnostics.ts",
+    "test:backend": "pnpm --filter backend test",
     "prisma:seed": "pnpm --filter backend prisma:seed",
     "prisma:push": "pnpm --filter backend prisma:push"
   }

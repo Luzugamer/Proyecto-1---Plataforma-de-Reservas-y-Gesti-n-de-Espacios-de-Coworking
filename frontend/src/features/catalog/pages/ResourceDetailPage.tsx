@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useSites } from '../hooks/useSites';
-import { useResources } from '../hooks/useResources';
+import { useQuery } from '@tanstack/react-query';
+import { catalogApi } from '../api';
 import { AvailabilitySlot } from '../types';
 import { AvailabilityCalendar } from '../components/AvailabilityCalendar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -29,37 +29,36 @@ export const ResourceDetailPage: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [confirmedReservation, setConfirmedReservation] = useState<ReservationResponse | null>(null);
 
-  const { data: rawSites } = useSites();
-  const sites = Array.isArray(rawSites) ? rawSites : [];
-  const { data: rawRes1 } = useResources('site_01');
-  const { data: rawRes2 } = useResources('site_02');
-
-  const res1List = Array.isArray(rawRes1) ? rawRes1 : [];
-  const res2List = Array.isArray(rawRes2) ? rawRes2 : [];
-  const combinedResources = [...res1List, ...res2List];
-  const resource = combinedResources.find((r) => r.id === resourceId) || {
-    id: resourceId || 'res_01',
-    siteId: 'site_01',
-    type: 'MEETING_ROOM' as const,
-    name: 'Espacio Seleccionado',
-    capacity: 6,
-    creditCost: { amount: 2, unit: 'HOUR' as const, minBlockMinutes: 30 },
-  };
-
-  const site = sites.find((s) => s.id === resource.siteId);
+  const { data: resource, isLoading: isLoadingResource } = useQuery({
+    queryKey: ['resource', resourceId],
+    queryFn: () => catalogApi.getResource(resourceId!),
+    enabled: Boolean(resourceId),
+  });
 
   const { mutate: createHold, isPending: isCreatingHold } = useCreateHold();
+
+  if (isLoadingResource) return <div className="p-8 text-center text-slate-500">Cargando recurso…</div>;
+  if (!resource) return <div className="p-8 text-center text-red-700">No se encontró el recurso solicitado.</div>;
+  const site = resource.site;
 
   const handleToggleSlot = (slot: AvailabilitySlot) => {
     setSelectedSlots((prev) => {
       const exists = prev.some((s) => s.startsAt === slot.startsAt && s.endsAt === slot.endsAt);
       if (exists) {
         return prev.filter((s) => s.startsAt !== slot.startsAt || s.endsAt !== slot.endsAt);
-      } else {
-        return [...prev, slot];
       }
+      if (prev.length === 0) return [slot];
+      const ordered = [...prev].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      const isAdjacent = slot.endsAt === ordered[0].startsAt || slot.startsAt === ordered[ordered.length - 1].endsAt;
+      return isAdjacent ? [...prev, slot] : [slot];
     });
   };
+
+  const selectedMinutes = selectedSlots.reduce(
+    (total, slot) => total + (new Date(slot.endsAt).getTime() - new Date(slot.startsAt).getTime()) / 60_000,
+    0
+  );
+  const meetsMinimum = selectedMinutes >= resource.creditCost.minBlockMinutes;
 
   const handleStartHold = () => {
     if (!isAuthenticated) {
@@ -176,17 +175,27 @@ export const ResourceDetailPage: React.FC = () => {
                     {selectedSlots.length} {selectedSlots.length === 1 ? 'slot seleccionado' : 'slots seleccionados'}
                   </span>
                   <span className="font-black text-blue-800 text-sm">
-                    {selectedSlots.length * (resource.creditCost.amount / 2)} créditos
+                    {resource.type === 'MEETING_ROOM'
+                      ? Math.ceil((selectedSlots.length / 2) * resource.creditCost.amount)
+                      : resource.type === 'HOT_DESK'
+                        ? Math.ceil(selectedSlots.length / 8) * resource.creditCost.amount
+                        : resource.creditCost.amount} créditos
                   </span>
                 </div>
                 <Button
                   onClick={handleStartHold}
                   isLoading={isCreatingHold}
+                  disabled={!meetsMinimum}
                   className="w-full text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   Retener y Proceder al Checkout (Hold 5 min)
                 </Button>
+                {!meetsMinimum && (
+                  <p className="text-left text-amber-800">
+                    Selecciona bloques contiguos hasta completar al menos {resource.creditCost.minBlockMinutes} minutos.
+                  </p>
+                )}
               </div>
             )}
           </div>

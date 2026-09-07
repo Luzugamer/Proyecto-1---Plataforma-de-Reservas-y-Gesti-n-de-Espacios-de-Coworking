@@ -20,11 +20,11 @@ El sistema gestiona la operación diaria de un espacio de coworking multi-sede. 
 ## 2. Stack Tecnológico Seleccionado (Localhost)
 
 ### Backend
-* **Lenguaje y Framework:** Python + FastAPI.
+* **Lenguaje y Framework:** TypeScript + Fastify.
 * **Base de Datos Relacional:** PostgreSQL (bloqueos pesimistas `SELECT FOR UPDATE` y restricciones de exclusión de rangos temporales `tsrange` / `btree_gist`).
-* **Cache y Gestión de Bloqueos:** Redis (bloqueos distribuidos de corta duración / TTL de pre-reserva, y rate limiting de intentos de login).
+* **Concurrencia y expiración:** PostgreSQL como única fuente de verdad: advisory locks transaccionales, restricción de exclusión de rangos y jobs idempotentes para expiración.
 * **Documentación de API / Contrato:** OpenAPI 3.0 / Swagger (núcleo para SDD).
-* **Autenticación:** JWT (access token de vida corta + refresh token con rotación), hashing de contraseñas con Argon2id.
+* **Autenticación:** JWT (access token de vida corta + refresh token con rotación), hashing de contraseñas con bcrypt (coste 12).
 
 ### Frontend
 * **Framework:** React + TypeScript (Vite).
@@ -36,7 +36,7 @@ El sistema gestiona la operación diaria de un espacio de coworking multi-sede. 
 ## 3. Reglas de Negocio (Business Rules)
 
 ### RN-AUTH: Autenticación y Gestión de Sesión
-1. **Registro:** Un usuario nuevo se registra con nombre, email único y contraseña. La contraseña se almacena únicamente como hash (Argon2id), nunca en texto plano.
+1. **Registro:** Un usuario nuevo se registra con nombre, email único y contraseña. La contraseña se almacena únicamente como hash bcrypt (coste 12), nunca en texto plano.
 2. **Roles:** Todo usuario tiene exactamente un rol: `MEMBER` (usuario miembro estándar), `SITE_ADMIN` (administrador de una o más sedes) o `RECEPTIONIST` (personal de recepción de sede). El rol determina qué endpoints puede invocar en el resto del sistema.
 3. **Inicio de sesión:** El login con email + contraseña otorga un `accessToken` (JWT, vida corta) y un `refreshToken` (vida larga, de un solo uso, con rotación en cada renovación).
 4. **Renovación de sesión:** Un `refreshToken` válido y no revocado permite obtener un nuevo par de tokens sin volver a pedir credenciales.
@@ -61,7 +61,7 @@ El sistema gestiona la operación diaria de un espacio de coworking multi-sede. 
 4. **Saldo Insuficiente:** Si un usuario no dispone de créditos suficientes, no puede reservar vía bolsa de membresía (debe adquirir un paquete extra o pagar tarifa directa).
 
 ### RN-RES: Motor Transaccional de Reservas y Concurrencia
-1. **Invariante de No Solapamiento:** Para un mismo recurso `MEETING_ROOM` o `DEDICATED_DESK`, no pueden coexistir dos reservas en estado `CONFIRMED` o `IN_PROGRESS` que compartan cualquier intervalo de tiempo `[T_inicio, T_fin)`.
+1. **Invariante de No Solapamiento:** Para un mismo recurso, no pueden coexistir dos reservas en estado `CONFIRMED` o `CHECKED_IN` que compartan cualquier intervalo de tiempo `[T_inicio, T_fin)`.
 2. **Pre-reserva (Hold):** Al iniciar el checkout de una reserva, se aplica un bloqueo de 5 minutos sobre el slot. Si no se confirma en dicho tiempo, el slot queda liberado.
 3. **Máquina de Estados:**
    * `PENDING` -> `CONFIRMED` -> `CHECKED_IN` -> `COMPLETED`
@@ -69,8 +69,8 @@ El sistema gestiona la operación diaria de un espacio de coworking multi-sede. 
    * `CONFIRMED` -> `NO_SHOW`
 
 ### RN-CAN: Cancelaciones y Reembolsos Escalados
-1. **Cancelación Temprana:** Cancelar con más de **24 horas** de anticipación al `T_inicio` otorga un reembolso del **100%** de los créditos deducidos.
-2. **Cancelación Tardía:** Cancelar entre **24 horas y 2 horas** antes otorga un reembolso del **50%**.
+1. **Cancelación Temprana:** Cancelar con **24 horas o más** de anticipación al `T_inicio` otorga un reembolso del **100%** de los créditos deducidos.
+2. **Cancelación Tardía:** Cancelar con menos de **24 horas** y al menos **2 horas** de anticipación otorga un reembolso del **50%**.
 3. **Cancelación Crítica:** Menos de **2 horas** antes de la reserva o posterior a `T_inicio` no otorga reembolso (**0%**).
 
 ### RN-CHK: Check-in y Penalización por No-Show
@@ -146,7 +146,7 @@ El sistema gestiona la operación diaria de un espacio de coworking multi-sede. 
   * *quiero* que el slot seleccionado quede reservado temporalmente durante 5 minutos,
   * *para* poder completar los datos y confirmación sin que otro usuario me gane el espacio.
   * **Criterios de Aceptación:**
-    * Si la reserva no se confirma en 300 segundos, Redis/worker expira el bloqueo y el slot vuelve al pool libre.
+    * Si la reserva no se confirma en 300 segundos, el worker de PostgreSQL marca el hold como expirado; las consultas ignoran inmediatamente todo hold cuyo `expiresAt` haya vencido.
 
 ---
 

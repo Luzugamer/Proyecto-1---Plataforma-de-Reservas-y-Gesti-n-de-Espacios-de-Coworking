@@ -8,7 +8,7 @@ export function useReservations(params?: GetReservationsParams) {
   const { isAuthenticated } = useAuth();
 
   return useQuery<PaginatedReservations, AppApiError>({
-    queryKey: ['reservations', params?.status, params?.page, params?.pageSize],
+    queryKey: ['reservations', params?.status, params?.from, params?.to, params?.page, params?.pageSize],
     queryFn: () => lifecycleApi.getReservations(params),
     enabled: isAuthenticated,
     refetchInterval: 30000, // Polling de 30 segundos (EARS / especificación)

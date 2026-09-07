@@ -120,7 +120,11 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">
             Franjas Horarias Disponibles (Paso mínimo: 30 min)
           </h4>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {slots.length === 0 ? (
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-slate-500">
+              La sede no tiene horario operativo o slots configurados para esta fecha.
+            </p>
+          ) : <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {slots.map((slot, index) => {
               const isSelected = selectedSlots.some(
                 (s) => s.startsAt === slot.startsAt && s.endsAt === slot.endsAt
@@ -135,7 +139,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 />
               );
             })}
-          </div>
+          </div>}
         </div>
       )}
     </div>

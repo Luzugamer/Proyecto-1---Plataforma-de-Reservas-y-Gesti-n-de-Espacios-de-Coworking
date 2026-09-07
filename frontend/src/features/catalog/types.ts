@@ -20,7 +20,7 @@ export interface Site {
 
 export interface CreditCost {
   amount: number;
-  unit: 'HOUR' | 'DAY' | 'MONTH';
+  unit: 'HOUR' | 'BLOCK_4_HOURS' | 'MONTH';
   minBlockMinutes: number;
 }
 
@@ -30,7 +30,6 @@ export interface Resource {
   type: ResourceType;
   name: string;
   capacity: number;
-  creditsPerHour?: number;
   amenities?: string[];
   creditCost: CreditCost;
 }

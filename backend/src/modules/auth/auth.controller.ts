@@ -30,9 +30,9 @@ export class AuthController {
   }
 
   async logout(request: FastifyRequest, reply: FastifyReply) {
-    const refreshToken = (request.body as { refreshToken?: string })?.refreshToken;
-    const result = await authService.logout(refreshToken);
-    return reply.status(200).send(result);
+    const input = refreshTokenSchema.parse(request.body);
+    await authService.logout(input);
+    return reply.status(204).send();
   }
 
   async getMe(request: FastifyRequest, reply: FastifyReply) {
@@ -46,7 +46,7 @@ export class AuthController {
   async forgotPassword(request: FastifyRequest, reply: FastifyReply) {
     const input = forgotPasswordSchema.parse(request.body);
     const result = await authService.forgotPassword(input);
-    return reply.status(200).send(result);
+    return reply.status(202).send(result);
   }
 
   async resetPassword(request: FastifyRequest, reply: FastifyReply) {

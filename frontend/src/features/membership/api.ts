@@ -1,31 +1,16 @@
 import { httpClient } from '@/shared/api/httpClient';
-import {
-  MembershipPlan,
-  UserSubscription,
-  WalletTransaction,
-  TopupPackage,
-  SubscribePlanRequest,
-  SubscribePlanResponse,
-  TopupRequest,
-  TopupResponse,
-} from './types';
+import { LedgerParams, MembershipPlan, PaginatedLedger } from './types';
 
 export const membershipApi = {
-  getPlans: (): Promise<MembershipPlan[]> =>
-    httpClient.get<MembershipPlan[]>('/memberships/plans'),
+  getPlans: (): Promise<MembershipPlan[]> => httpClient.get<MembershipPlan[]>('/plans'),
 
-  getCurrentSubscription: (): Promise<UserSubscription> =>
-    httpClient.get<UserSubscription>('/memberships/current'),
-
-  subscribeToPlan: (data: SubscribePlanRequest): Promise<SubscribePlanResponse> =>
-    httpClient.post<SubscribePlanResponse>('/memberships/subscribe', data),
-
-  getTransactions: (): Promise<WalletTransaction[]> =>
-    httpClient.get<WalletTransaction[]>('/wallet/transactions'),
-
-  getTopupPackages: (): Promise<TopupPackage[]> =>
-    httpClient.get<TopupPackage[]>('/wallet/topup/packages'),
-
-  purchaseTopup: (data: TopupRequest): Promise<TopupResponse> =>
-    httpClient.post<TopupResponse>('/wallet/topup', data),
+  getLedger: (params: LedgerParams = {}): Promise<PaginatedLedger> => {
+    const search = new URLSearchParams();
+    if (params.from) search.set('from', params.from);
+    if (params.to) search.set('to', params.to);
+    if (params.page) search.set('page', String(params.page));
+    if (params.pageSize) search.set('pageSize', String(params.pageSize));
+    const suffix = search.size ? `?${search.toString()}` : '';
+    return httpClient.get<PaginatedLedger>(`/wallet/ledger${suffix}`);
+  },
 };

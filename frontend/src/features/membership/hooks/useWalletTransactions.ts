@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { membershipApi } from '../api';
-import { WalletTransaction } from '../types';
+import { PaginatedLedger } from '../types';
 
-export function useWalletTransactions() {
-  return useQuery<WalletTransaction[]>({
-    queryKey: ['wallet-transactions'],
-    queryFn: () => membershipApi.getTransactions(),
+export function useWalletTransactions(page = 1) {
+  return useQuery<PaginatedLedger>({
+    queryKey: ['wallet-transactions', page],
+    queryFn: () => membershipApi.getLedger({ page, pageSize: 20 }),
   });
 }

@@ -260,9 +260,13 @@ export const authHandlers = [
     const body = (await request.json()) as { refreshToken?: string };
     const { refreshToken } = body;
 
-    if (refreshToken && activeRefreshTokens.has(refreshToken)) {
-      activeRefreshTokens.delete(refreshToken);
+    if (!refreshToken || !activeRefreshTokens.has(refreshToken)) {
+      return HttpResponse.json(
+        { error: { code: 'INVALID_REFRESH_TOKEN', message: 'El refresh token es inválido o ya fue revocado.' } },
+        { status: 401 }
+      );
     }
+    activeRefreshTokens.delete(refreshToken);
 
     return new HttpResponse(null, { status: 204 });
   }),
@@ -312,6 +316,7 @@ export const authHandlers = [
     if (memberUser) {
       memberUser.password = newPassword;
     }
+    validResetTokens.delete(token);
 
     return HttpResponse.json(
       {

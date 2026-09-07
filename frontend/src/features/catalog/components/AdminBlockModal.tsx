@@ -29,8 +29,8 @@ export const AdminBlockModal: React.FC<AdminBlockModalProps> = ({ resource, onCl
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const startsAt = `${date}T${startTime}:00Z`;
-    const endsAt = `${date}T${endTime}:00Z`;
+    const startsAt = new Date(`${date}T${startTime}:00`).toISOString();
+    const endsAt = new Date(`${date}T${endTime}:00`).toISOString();
 
     blockResource(
       { startsAt, endsAt, reason },

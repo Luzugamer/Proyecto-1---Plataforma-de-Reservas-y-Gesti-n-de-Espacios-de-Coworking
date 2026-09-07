@@ -8,7 +8,7 @@ export interface EstimatedRefund {
 
 /**
  * Calcula el porcentaje y créditos a reembolsar según la regla de negocio RN-CAN:
- * - Cancelación Temprana (> 24 horas antes): 100% reembolso
+ * - Cancelación Temprana (>= 24 horas antes): 100% reembolso
  * - Cancelación Tardía (entre 24h y 2 horas antes): 50% reembolso
  * - Cancelación Crítica (< 2 horas antes o posterior al inicio): 0% reembolso
  */
@@ -21,12 +21,12 @@ export function calculateEstimatedRefund(
   const diffMs = startTime - currentTimestamp;
   const hoursRemaining = diffMs / (1000 * 60 * 60);
 
-  if (hoursRemaining > 24) {
+  if (hoursRemaining >= 24) {
     return {
       percentage: 100,
       refundedCredits: creditsDeducted,
       tier: 'EARLY',
-      tierLabel: 'Cancelación Temprana (>24h de anticipación)',
+      tierLabel: 'Cancelación Temprana (≥24h de anticipación)',
       hoursRemaining,
     };
   }

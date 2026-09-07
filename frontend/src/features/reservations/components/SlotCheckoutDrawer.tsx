@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { HoldResponse, ReservationResponse } from '../types';
 import { Resource } from '@/features/catalog/types';
 import { useWalletBalance } from '../hooks/useWalletBalance';
@@ -24,6 +25,8 @@ export const SlotCheckoutDrawer: React.FC<SlotCheckoutDrawerProps> = ({
   onClose,
   onReservationSuccess,
 }) => {
+  const queryClient = useQueryClient();
+  const [expiredLocally, setExpiredLocally] = useState(false);
   const { data: wallet, isLoading: isLoadingWallet } = useWalletBalance();
   const { mutate: confirmReservation, isPending: isConfirming, error: confirmError } = useConfirmReservation(
     resource?.id
@@ -69,7 +72,7 @@ export const SlotCheckoutDrawer: React.FC<SlotCheckoutDrawerProps> = ({
     );
   };
 
-  const isHoldExpired = confirmError?.code === 'HOLD_EXPIRED';
+  const isHoldExpired = expiredLocally || confirmError?.code === 'HOLD_EXPIRED';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 p-0 sm:p-4 backdrop-blur-sm animate-in fade-in">
@@ -98,7 +101,21 @@ export const SlotCheckoutDrawer: React.FC<SlotCheckoutDrawerProps> = ({
 
         <CardContent className="space-y-4 pt-4 text-sm">
           {/* Contador Regresivo */}
-          <HoldCountdown expiresAt={hold.expiresAt} onExpire={onClose} />
+          <HoldCountdown
+            expiresAt={hold.expiresAt}
+            onExpire={() => {
+              setExpiredLocally(true);
+              queryClient.invalidateQueries({ queryKey: ['availability', resource.id] });
+            }}
+          />
+
+          {expiredLocally && !confirmError && (
+            <Alert variant="warning">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>El hold expiró</AlertTitle>
+              <AlertDescription>El horario volvió a estar disponible. Cierra este panel y selecciónalo nuevamente.</AlertDescription>
+            </Alert>
+          )}
 
           {/* Errores */}
           {confirmError && (

@@ -3,11 +3,11 @@ terraform {
   required_providers {
     neon = {
       source  = "kislerdm/neon"
-      version = "~> 0.6.0"
+      version = "= 0.6.3"
     }
     render = {
       source  = "render-oss/render"
-      version = ">= 1.9.0"
+      version = "= 1.9.1"
     }
   }
 }

@@ -14,7 +14,7 @@ Pantallas para que el usuario explore sedes, tipos de recurso y consulte disponi
 - CUANDO el usuario selecciona una sede y una fecha, EL SISTEMA DEBERÁ mostrar los slots de 30 min del día con su estado (`AVAILABLE`, `HELD`, `BOOKED`, `BLOCKED`) diferenciados visualmente.
 - CUANDO un slot tiene estado distinto de `AVAILABLE`, EL SISTEMA DEBERÁ deshabilitarlo para selección.
 - SI la consulta de disponibilidad falla o tarda, ENTONCES EL SISTEMA DEBERÁ mostrar estado de carga y un mensaje de reintento, nunca una grilla vacía sin explicación.
-- CUANDO un administrador confirma un bloqueo de mantenimiento sobre un rango con reservas activas, EL SISTEMA DEBERÁ mostrar antes de confirmar cuántas reservas se verán afectadas (usando la respuesta del backend) y notificar el resultado (reembolsos otorgados) tras confirmar.
+- CUANDO un administrador prepara un bloqueo de mantenimiento, EL SISTEMA DEBERÁ advertir antes de confirmar que las reservas activas se cancelarán; tras confirmar, mostrará el conteo real y los reembolsos devueltos por el backend. El contrato v1.1 no define un endpoint de previsualización sin efectos.
 - MIENTRAS la pantalla de disponibilidad esté abierta, EL SISTEMA DEBERÁ refrescar los datos periódicamente (polling, ver Notas técnicas) para reflejar cambios de otros usuarios sin recargar la página.
 
 ## Inventario de pantallas / componentes
@@ -22,10 +22,10 @@ Pantallas para que el usuario explore sedes, tipos de recurso y consulte disponi
 - `ResourceTypeTabs`: filtro por `HOT_DESK | DEDICATED_DESK | MEETING_ROOM`.
 - `ResourceList`: tarjetas de recurso con capacidad y costo en créditos (`GET /sites/{id}/resources`).
 - `AvailabilityCalendar`: grilla de slots de 30 min por recurso/fecha (`GET /resources/{id}/availability`), con leyenda de estados.
-- `AdminBlockResourceModal`: formulario de rango + motivo, muestra preview de impacto y confirmación (`POST /admin/resources/{id}/blocks`).
+- `AdminBlockResourceModal`: formulario de rango + motivo, advertencia de impacto y resultado de cancelaciones (`POST /admin/resources/{id}/blocks`).
 
 ## Contrato de API que consume
-`GET /sites`, `GET /sites/{siteId}/resources`, `GET /resources/{resourceId}/availability`, `POST /admin/resources/{resourceId}/blocks` — ver `00-api-contracts.md`.
+`GET /sites`, `GET /sites/{siteId}/resources`, `GET /resources/{resourceId}`, `GET /resources/{resourceId}/availability`, `POST /admin/resources/{resourceId}/blocks` — ver `00-api-contracts.md`.
 
 ## Estrategia de mocks (para construir sin backend)
 - Handlers de MSW que replican exactamente los 4 endpoints anteriores, incluyendo los casos de error `RESOURCE_NOT_FOUND` y `VALIDATION_ERROR`.

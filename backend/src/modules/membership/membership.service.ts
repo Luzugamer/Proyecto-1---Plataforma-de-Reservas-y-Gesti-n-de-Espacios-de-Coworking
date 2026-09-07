@@ -1,206 +1,132 @@
 import { prisma } from '../../config/database.js';
-import { AppError } from '../../shared/utils/errors.js';
-import { PlanTier } from '@prisma/client';
-import { SubscribePlanInput, TopupInput } from './membership.schemas.js';
-
-export const TOPUP_PACKAGES = [
-  {
-    id: 'pkg_express_5',
-    credits: 5,
-    price: 18,
-    currency: 'USD',
-    label: 'Paquete Express (5 Créditos)',
-  },
-  {
-    id: 'pkg_team_15',
-    credits: 15,
-    price: 45,
-    currency: 'USD',
-    label: 'Paquete Team (15 Créditos)',
-    savingsBadge: 'Ahorra 15%',
-  },
-  {
-    id: 'pkg_boost_30',
-    credits: 30,
-    price: 80,
-    currency: 'USD',
-    label: 'Paquete Boost (30 Créditos)',
-    savingsBadge: 'Ahorra 25%',
-  },
-];
+import { addCalendarMonth } from '../../shared/utils/dateTime.js';
+import { lockUserWallet } from '../../shared/utils/postgresLocks.js';
+import { LedgerQuery } from './membership.schemas.js';
 
 export class MembershipService {
   async getPlans() {
-    return prisma.membershipPlan.findMany({
-      orderBy: { pricePerMonth: 'asc' },
-    });
+    const plans = await prisma.membershipPlan.findMany({ orderBy: { pricePerMonth: 'asc' } });
+    return plans.map((plan) => ({
+      id: `plan_${plan.id.toLowerCase()}`,
+      name: plan.name,
+      monthlyCredits: plan.monthlyCredits,
+      price: plan.pricePerMonth,
+      currency: plan.currency,
+    }));
   }
 
-  async getCurrentSubscription(userId: string) {
-    let sub = await prisma.subscription.findUnique({
-      where: { userId },
-      include: { plan: true },
-    });
-
-    if (!sub) {
-      // Crear suscripción Starter por defecto si no existe
-      sub = await prisma.subscription.create({
-        data: {
-          userId,
-          planId: PlanTier.STARTER,
-          status: 'ACTIVE',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          autoRenew: true,
-        },
-        include: { plan: true },
-      });
-    }
-
+  async getWalletLedger(userId: string, query: LedgerQuery) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const where = {
+      userId,
+      ...(query.from || query.to
+        ? { createdAt: { ...(query.from ? { gte: new Date(query.from) } : {}), ...(query.to ? { lte: new Date(query.to) } : {}) } }
+        : {}),
+    };
+    const [items, total] = await Promise.all([
+      prisma.walletTransaction.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.walletTransaction.count({ where }),
+    ]);
     return {
-      planId: sub.planId,
-      planName: sub.plan.name,
-      monthlyCredits: sub.plan.monthlyCredits,
-      status: sub.status,
-      currentPeriodStart: sub.currentPeriodStart.toISOString(),
-      currentPeriodEnd: sub.currentPeriodEnd.toISOString(),
-      autoRenew: sub.autoRenew,
+      items: items.map((entry) => ({
+        id: entry.id,
+        type: entry.type,
+        amount: entry.amount,
+        balanceAfter: entry.balanceAfter,
+        reservationId: entry.referenceId,
+        createdAt: entry.createdAt.toISOString(),
+      })),
+      page,
+      pageSize,
+      total,
     };
   }
 
-  async subscribeToPlan(userId: string, input: SubscribePlanInput) {
-    return prisma.$transaction(async (tx) => {
-      const targetPlan = await tx.membershipPlan.findUnique({
-        where: { id: input.planId },
-      });
+  async renewDueMemberships(now = new Date()) {
+    const due = await prisma.subscription.findMany({
+      where: { currentPeriodEnd: { lte: now } },
+      select: { userId: true },
+    });
+    let processedUsers = 0;
+    let totalCreditsGranted = 0;
+    const failedUsers: Array<{ userId: string; reason: string }> = [];
 
-      if (!targetPlan) {
-        throw new AppError('RESOURCE_NOT_FOUND', `El plan ${input.planId} no existe.`, 404);
-      }
-
-      let currentSub = await tx.subscription.findUnique({
-        where: { userId },
-        include: { plan: true },
-      });
-
-      const previousCredits = currentSub ? currentSub.plan.monthlyCredits : 10;
-      const creditDifference = Math.max(0, targetPlan.monthlyCredits - previousCredits);
-
-      // 1. Actualizar o crear suscripción
-      const now = new Date();
-      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-      const updatedSub = await tx.subscription.upsert({
-        where: { userId },
-        update: {
-          planId: targetPlan.id,
-          status: 'ACTIVE',
-          currentPeriodStart: now,
-          currentPeriodEnd: periodEnd,
-          autoRenew: true,
-        },
-        create: {
+    for (const { userId } of due) {
+      try {
+        const granted = await this.renewUserCycle(userId, now);
+        if (granted !== null) {
+          processedUsers += 1;
+          totalCreditsGranted += granted;
+        }
+      } catch (error) {
+        console.error(`No se pudo renovar el ciclo de ${userId}:`, error);
+        failedUsers.push({
           userId,
-          planId: targetPlan.id,
-          status: 'ACTIVE',
-          currentPeriodStart: now,
-          currentPeriodEnd: periodEnd,
-          autoRenew: true,
-        },
-        include: { plan: true },
-      });
-
-      // 2. Si es upgrade, acreditar la diferencia inmediatamente
-      let wallet = await tx.wallet.findUnique({ where: { userId } });
-      if (!wallet) {
-        wallet = await tx.wallet.create({ data: { userId, balance: 10 } });
-      }
-
-      let newBalance = wallet.balance;
-      if (creditDifference > 0) {
-        newBalance += creditDifference;
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: { balance: newBalance },
+          reason: error instanceof Error ? error.message : 'Error desconocido',
         });
+      }
+    }
+    return { processedUsers, totalCreditsGranted, failedUsers };
+  }
 
+  private async renewUserCycle(userId: string, now: Date): Promise<number | null> {
+    return prisma.$transaction(async (tx) => {
+      await lockUserWallet(tx, userId);
+      const subscription = await tx.subscription.findUnique({ where: { userId }, include: { plan: true } });
+      if (!subscription || subscription.currentPeriodEnd > now) return null;
+      const wallet = await tx.wallet.findUnique({ where: { userId } });
+      if (!wallet) throw new Error(`Billetera ausente para usuario ${userId}`);
+
+      if (wallet.balance > 0) {
+        await tx.wallet.update({ where: { id: wallet.id }, data: { balance: 0 } });
         await tx.walletTransaction.create({
           data: {
             walletId: wallet.id,
             userId,
-            type: 'PLAN_UPGRADE_CREDIT',
-            amount: creditDifference,
-            balanceAfter: newBalance,
-            description: `Upgrade a ${targetPlan.name}: +${creditDifference} créditos de diferencia asignados`,
-            referenceId: targetPlan.id,
+            type: 'EXPIRE',
+            amount: -wallet.balance,
+            balanceAfter: 0,
+            description: 'Caducidad del saldo al cierre del ciclo',
           },
         });
       }
-
-      return {
-        subscription: {
-          planId: updatedSub.planId,
-          planName: updatedSub.plan.name,
-          monthlyCredits: updatedSub.plan.monthlyCredits,
-          status: updatedSub.status,
-          currentPeriodStart: updatedSub.currentPeriodStart.toISOString(),
-          currentPeriodEnd: updatedSub.currentPeriodEnd.toISOString(),
-          autoRenew: updatedSub.autoRenew,
-        },
-        creditedDifference: creditDifference,
-        newBalance,
-      };
-    });
-  }
-
-  async getTopupPackages() {
-    return TOPUP_PACKAGES;
-  }
-
-  async purchaseTopup(userId: string, input: TopupInput) {
-    const pkg = TOPUP_PACKAGES.find((p) => p.id === input.packageId);
-
-    if (!pkg) {
-      throw new AppError('RESOURCE_NOT_FOUND', `El paquete con ID ${input.packageId} no existe.`, 404);
-    }
-
-    return prisma.$transaction(async (tx) => {
-      let wallet = await tx.wallet.findUnique({ where: { userId } });
-      if (!wallet) {
-        wallet = await tx.wallet.create({ data: { userId, balance: 10 } });
+      let nextPeriodStart = subscription.currentPeriodEnd;
+      let nextPeriodEnd = addCalendarMonth(nextPeriodStart);
+      while (nextPeriodEnd <= now) {
+        nextPeriodStart = nextPeriodEnd;
+        nextPeriodEnd = addCalendarMonth(nextPeriodEnd);
+      }
+      if (subscription.status !== 'ACTIVE') {
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: 'EXPIRED',
+            currentPeriodStart: nextPeriodStart,
+            currentPeriodEnd: nextPeriodEnd,
+          },
+        });
+        return null;
       }
 
-      const newBalance = wallet.balance + pkg.credits;
-      await tx.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: newBalance },
-      });
-
-      const txRecord = await tx.walletTransaction.create({
+      const grant = subscription.plan.monthlyCredits;
+      await tx.wallet.update({ where: { id: wallet.id }, data: { balance: grant } });
+      await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           userId,
-          type: 'TOPUP_PURCHASE',
-          amount: pkg.credits,
-          balanceAfter: newBalance,
-          description: `Compra de ${pkg.label} ($${pkg.price} ${pkg.currency})`,
-          referenceId: pkg.id,
+          type: 'GRANT',
+          amount: grant,
+          balanceAfter: grant,
+          description: `Asignación mensual — ${subscription.plan.name}`,
         },
       });
 
-      return {
-        transactionId: txRecord.id,
-        creditsAdded: pkg.credits,
-        newBalance,
-      };
-    });
-  }
-
-  async getWalletTransactions(userId: string) {
-    return prisma.walletTransaction.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
+      await tx.subscription.update({
+        where: { id: subscription.id },
+        data: { currentPeriodStart: nextPeriodStart, currentPeriodEnd: nextPeriodEnd },
+      });
+      return grant;
     });
   }
 }

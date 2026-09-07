@@ -17,7 +17,7 @@ export async function catalogRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/admin/resources/:id/blocks',
     {
-      preHandler: [authenticate, authorizeRoles(UserRole.SITE_ADMIN, UserRole.RECEPTIONIST)],
+      preHandler: [authenticate, authorizeRoles(UserRole.SITE_ADMIN)],
     },
     controller.createMaintenanceBlock
   );

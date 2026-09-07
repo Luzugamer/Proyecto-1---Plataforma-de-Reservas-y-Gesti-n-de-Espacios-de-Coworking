@@ -248,7 +248,7 @@ export const reservationsHandlers = [
       {
         userId,
         availableCredits,
-        cycleEndsAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString(),
+        cycleEndsAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
       },
       { status: 200 }
     );

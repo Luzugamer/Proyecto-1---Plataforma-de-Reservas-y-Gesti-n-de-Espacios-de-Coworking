@@ -35,7 +35,7 @@ export function buildApp() {
       ) {
         return cb(null, true);
       }
-      return cb(null, true);
+      return cb(new Error(`Origen CORS no permitido: ${origin}`), false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

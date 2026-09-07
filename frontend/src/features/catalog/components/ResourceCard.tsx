@@ -31,12 +31,11 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({ resource, onOpenAdmi
     if (resource.creditCost) {
       const { amount, unit } = resource.creditCost;
       if (unit === 'HOUR') return `${amount} créditos / hora`;
-      if (unit === 'DAY') return `${amount} créditos / día`;
+      if (unit === 'BLOCK_4_HOURS') return `${amount} créditos / bloque de 4 h`;
       if (unit === 'MONTH') return `${amount} créditos / mes`;
       return `${amount} créditos`;
     }
-    const credits = resource.creditsPerHour ?? 1;
-    return `${credits} créditos / hora`;
+    return 'Costo no disponible';
   };
 
   return (

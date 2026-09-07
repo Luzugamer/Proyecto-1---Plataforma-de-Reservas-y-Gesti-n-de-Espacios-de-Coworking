@@ -15,7 +15,7 @@ Panel de "mis reservas" con acciones de cancelar (mostrando el porcentaje de ree
 - CUANDO el usuario confirma la cancelación, EL SISTEMA DEBERÁ mostrar el resultado real devuelto por el backend (`refundPercentage`, `refundedCredits`), que debe coincidir con lo previsualizado salvo que haya pasado un umbral de tiempo entre la vista previa y la confirmación.
 - SI se intenta cancelar una reserva que ya no es cancelable (`RESERVATION_NOT_CANCELLABLE`), ENTONCES EL SISTEMA DEBERÁ explicar por qué (ej. "la reserva ya inició o fue completada") en vez de un error genérico.
 - CUANDO un recepcionista registra el check-in dentro de la ventana permitida, EL SISTEMA DEBERÁ actualizar el estado a `CHECKED_IN` de forma inmediata en la UI (optimista) y confirmar contra el servidor.
-- SI el check-in se intenta fuera de ventana (`CHECKINWINDOW_CLOSED`), ENTONCES EL SISTEMA DEBERÁ explicar que la ventana de check-in (±15 min de la hora de inicio) ya cerró.
+- SI el check-in se intenta fuera de ventana (`CHECKIN_WINDOW_CLOSED`), ENTONCES EL SISTEMA DEBERÁ explicar que la ventana de check-in (±15 min de la hora de inicio) ya cerró.
 - MIENTRAS el panel de reservas esté abierto, EL SISTEMA DEBERÁ reflejar transiciones automáticas a `NO_SHOW` hechas por el backend (vía refresco periódico de `GET /reservations`), sin que el usuario tenga que recargar manualmente.
 
 ## Inventario de pantallas / componentes
@@ -48,8 +48,8 @@ Panel de "mis reservas" con acciones de cancelar (mostrando el porcentaje de ree
 ## Supuestos
 - El cálculo de "ahora mismo" para el reembolso usa la hora del cliente; se asume una diferencia de reloj despreciable con el servidor (no se implementa sincronización NTP en el cliente).
 
-## Preguntas abiertas
-- [ ] ¿La vista de recepción (`ReceptionCheckinView`) requiere un rol distinto al de "administrador de sede" definido en la Épica 1, o es el mismo rol?
+## Decisión v1.1
+- `RECEPTIONIST` es un rol distinto; tanto recepción como administración solo acceden a reservas de sedes asignadas mediante `SiteStaff`.
 
 ## Métricas de éxito
 - Un usuario puede ver el reembolso estimado y cancelar su reserva completamente contra mocks, con el mismo mensaje que dará el backend real, antes de que el backend exista.

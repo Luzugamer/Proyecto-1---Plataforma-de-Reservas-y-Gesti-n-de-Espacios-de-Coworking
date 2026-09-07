@@ -8,7 +8,6 @@ export const createHoldSchema = z.object({
 
 export const confirmReservationSchema = z.object({
   holdId: z.string().min(1, 'holdId es requerido.'),
-  userNotes: z.string().optional(),
 });
 
 export type CreateHoldInput = z.infer<typeof createHoldSchema>;

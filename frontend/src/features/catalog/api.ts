@@ -17,6 +17,9 @@ export const catalogApi = {
     return httpClient.get<Resource[]>(`/sites/${siteId}/resources${query}`, { skipAuth: true });
   },
 
+  getResource: (resourceId: string): Promise<Resource & { site: Site }> =>
+    httpClient.get<Resource & { site: Site }>(`/resources/${resourceId}`, { skipAuth: true }),
+
   getAvailability: (resourceId: string, date: string): Promise<ResourceAvailability> =>
     httpClient.get<ResourceAvailability>(`/resources/${resourceId}/availability?date=${date}`, {
       skipAuth: true,

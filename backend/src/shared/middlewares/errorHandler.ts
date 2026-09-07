@@ -1,6 +1,7 @@
 import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import { AppError } from '../utils/errors.js';
+import { Prisma } from '@prisma/client';
 
 export function errorHandler(
   error: FastifyError | AppError | ZodError | Error,
@@ -27,6 +28,20 @@ export function errorHandler(
         details: error.flatten().fieldErrors,
       },
     });
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002' && String(error.meta?.target).includes('email')) {
+      return reply.status(409).send({
+        error: { code: 'EMAIL_ALREADY_REGISTERED', message: 'El correo ya se encuentra registrado.', details: {} },
+      });
+    }
+    const databaseError = JSON.stringify(error.meta ?? {});
+    if ((error.code === 'P2004' || error.code === 'P2010') && databaseError.includes('reservations_no_active_overlap')) {
+      return reply.status(409).send({
+        error: { code: 'SLOT_UNAVAILABLE', message: 'El intervalo solicitado ya no está disponible.', details: {} },
+      });
+    }
   }
 
   // Error de validación interna de Fastify

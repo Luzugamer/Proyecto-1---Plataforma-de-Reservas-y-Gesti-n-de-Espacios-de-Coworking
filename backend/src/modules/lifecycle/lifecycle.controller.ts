@@ -1,24 +1,17 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { LifecycleService } from './lifecycle.service.js';
+import { reservationsQuerySchema } from './lifecycle.schemas.js';
 
 const lifecycleService = new LifecycleService();
 
 export class LifecycleController {
   async getReservations(request: FastifyRequest, reply: FastifyReply) {
-    const query = request.query as {
-      status?: string;
-      page?: string;
-      pageSize?: string;
-    };
+    const query = reservationsQuerySchema.parse(request.query);
 
     const result = await lifecycleService.getReservations(
       request.user!.userId,
       request.user!.role,
-      {
-        status: query.status,
-        page: query.page ? Number(query.page) : undefined,
-        pageSize: query.pageSize ? Number(query.pageSize) : undefined,
-      }
+      query
     );
     return reply.status(200).send(result);
   }

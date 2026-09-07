@@ -57,10 +57,10 @@ Pantallas de registro, login, recuperación de contraseña y manejo transparente
 ## Supuestos
 - El `refreshToken` sí se persiste en el cliente (ej. cookie no-httpOnly o storage) para sobrevivir a un refresh de página, a diferencia del `accessToken`. Cuál mecanismo exacto usar (cookie httpOnly gestionada por el backend vs. almacenamiento explícito en el cliente) es la pregunta abierta más importante de esta spec — afecta configuración de CORS/cookies en el backend, no la forma del resto del contrato.
 
-## Preguntas abiertas
-- [ ] ¿El registro (HU-08) autologuea al usuario inmediatamente, o siempre exige un login explícito después de registrarse?
-- [ ] ¿Se requiere verificación de email antes de poder reservar, o el registro deja la cuenta usable de inmediato?
-- [ ] ¿El `refreshToken` se maneja como cookie `httpOnly` seteada por el backend (más seguro, recomendado) o se persiste explícitamente en el cliente? Definir antes de construir `AuthProvider` a fondo, aunque no bloquea empezar con los formularios.
+## Decisiones v1.1
+- Tras registrar, el frontend llama a login automáticamente; el contrato de registro no devuelve tokens.
+- No se exige verificación de email en v1.1.
+- El contrato actual entrega el refresh token en el cuerpo: el access token queda solo en memoria y el refresh token se persiste en almacenamiento local hasta versionar una alternativa con cookie `httpOnly`.
 
 ## Métricas de éxito
 - Un usuario puede registrarse, iniciar sesión, navegar rutas protegidas según su rol, y cerrar sesión, completamente contra mocks — y el resto de las specs (001-004) pueden asumir `AuthProvider` ya resuelto al construirse.

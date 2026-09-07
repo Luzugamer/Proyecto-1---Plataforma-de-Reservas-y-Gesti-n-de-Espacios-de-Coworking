@@ -39,8 +39,8 @@ Job de renovación cíclica mensual de créditos por plan, con expiración de sa
 ## Supuestos
 - "Ciclo de facturación mensual" se interpreta como 1 mes calendario desde la fecha de alta/última renovación, no necesariamente alineado al día 1 de cada mes.
 
-## Preguntas abiertas
-- [ ] ¿El primer ciclo de un usuario nuevo se prorratea según el día de alta, o siempre otorga el cupo completo? El documento fuente no lo especifica.
+## Decisión v1.1
+- El primer ciclo otorga el cupo completo, sin prorrateo, y termina un mes calendario después del alta.
 
 ## Métricas de éxito
 - Ejecutar el job de renovación dos veces seguidas sobre el mismo lote de usuarios produce el mismo saldo final que ejecutarlo una sola vez (test de idempotencia).

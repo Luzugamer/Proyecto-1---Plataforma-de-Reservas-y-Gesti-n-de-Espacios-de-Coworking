@@ -7,12 +7,12 @@
 Transiciones de estado de la máquina de reservas: cancelación con reembolso escalado según anticipación, check-in dentro de ventana, y transición automática a `NO_SHOW` vía worker programado.
 
 ## Reglas de negocio que gobiernan esta spec
-- **RN-CAN.1-3** — Reembolso escalado: >24h → 100%, entre 24h y 2h → 50%, <2h o posterior a `T_inicio` → 0%.
+- **RN-CAN.1-3** — Reembolso escalado: ≥24h → 100%, entre menos de 24h y 2h inclusive → 50%, <2h o posterior a `T_inicio` → 0%.
 - **RN-CHK.1** — Ventana de check-in: `T_inicio - 15min` hasta `T_inicio + 15min`.
 - **RN-CHK.2** — Sin check-in dentro de ventana → transición automática a `NO_SHOW`, libera el recurso, sin reembolso.
 
 ## Criterios de aceptación (EARS)
-- CUANDO se solicita cancelar una reserva `CONFIRMED` con más de 24h de anticipación a `startsAt`, EL SISTEMA DEBERÁ reembolsar el 100% de los créditos deducidos y transicionar a `CANCELLED`.
+- CUANDO se solicita cancelar una reserva `CONFIRMED` con 24h o más de anticipación a `startsAt`, EL SISTEMA DEBERÁ reembolsar el 100% de los créditos deducidos y transicionar a `CANCELLED`.
 - CUANDO se solicita cancelar entre 24h y 2h antes, EL SISTEMA DEBERÁ reembolsar exactamente el 50% (redondeo: hacia abajo al entero más cercano) y transicionar a `CANCELLED`.
 - CUANDO se solicita cancelar con menos de 2h de anticipación o después de `startsAt`, EL SISTEMA DEBERÁ transicionar a `CANCELLED` sin generar reembolso.
 - SI se intenta cancelar una reserva que no está en estado `CONFIRMED` o `CHECKED_IN`, ENTONCES EL SISTEMA DEBERÁ responder `409 RESERVATION_NOT_CANCELLABLE`.
@@ -42,8 +42,8 @@ Transiciones de estado de la máquina de reservas: cancelación con reembolso es
 ## Supuestos
 - El worker de `NO_SHOW` corre sobre todas las sedes sin distinción de zona horaria, comparando siempre en UTC contra `startsAt`.
 
-## Preguntas abiertas
-- [ ] ¿Cancelar una reserva ya `CHECKED_IN` debe ser posible y con qué reembolso? El documento fuente solo define el reembolso escalado para el estado `CONFIRMED`.
+## Decisión v1.1
+- Una reserva `CHECKED_IN` se puede cancelar y usa el mismo cálculo escalado; normalmente resulta en 0% porque el inicio ya ocurrió.
 
 ## Métricas de éxito
 - Suite de tests cubre los 3 tramos de reembolso más sus límites exactos, y un test de integración confirma que el worker de `NO_SHOW` libera el recurso correctamente sin generar reembolso.

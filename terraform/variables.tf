@@ -24,7 +24,7 @@ variable "render_owner_id" {
 variable "github_repo_url" {
   type        = string
   description = "URL HTTPS de tu repositorio de GitHub"
-  default     = "https://github.com/TU_USUARIO/TU_REPOSITORIO"
+  default     = "https://github.com/Luzugamer/Proyecto-1---Plataforma-de-Reservas-y-Gesti-n-de-Espacios-de-Coworking.git"
 }
 
 variable "github_branch" {
@@ -33,9 +33,13 @@ variable "github_branch" {
   default     = "main"
 }
 
-variable "jwt_secret" {
+variable "render_backend_plan" {
   type        = string
-  description = "Secreto para firmar tokens JWT"
-  default     = "super_secret_jwt_key_coworking_2026_prod"
-  sensitive   = true
+  description = "Plan de Render compatible con el provider (starter o superior)"
+  default     = "starter"
+
+  validation {
+    condition     = contains(["starter", "standard", "pro", "pro_plus", "pro_max", "pro_ultra"], var.render_backend_plan)
+    error_message = "render_backend_plan debe ser un plan de web service aceptado por render-oss/render 1.9.1."
+  }
 }

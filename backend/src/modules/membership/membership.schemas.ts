@@ -1,13 +1,10 @@
 import { z } from 'zod';
-import { PlanTier } from '@prisma/client';
 
-export const subscribePlanSchema = z.object({
-  planId: z.nativeEnum(PlanTier, { message: 'planId debe ser STARTER, PRO o ENTERPRISE.' }),
+export const ledgerQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-export const topupSchema = z.object({
-  packageId: z.string().min(1, 'packageId es requerido.'),
-});
-
-export type SubscribePlanInput = z.infer<typeof subscribePlanSchema>;
-export type TopupInput = z.infer<typeof topupSchema>;
+export type LedgerQuery = z.infer<typeof ledgerQuerySchema>;

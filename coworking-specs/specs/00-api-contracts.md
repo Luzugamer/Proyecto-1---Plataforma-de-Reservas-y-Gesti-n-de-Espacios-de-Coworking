@@ -1,6 +1,6 @@
 # Contrato de API — Plataforma de Coworking
 
-**Versión**: v1.0.0 (congelada) | **Base URL**: `/api/v1` | **Autenticación**: Bearer token (fuera de alcance de este documento; asumir header `Authorization: Bearer <token>` en todas las rutas salvo las públicas de catálogo)
+**Versión**: v1.1.0 (congelada) | **Base URL**: `/api/v1` | **Autenticación**: Bearer token (header `Authorization: Bearer <token>` en rutas protegidas; autenticación, catálogo y planes son públicos)
 
 > Este documento es la **única fuente de verdad** que frontend y backend implementan. El frontend lo consume vía mocks (MSW) hasta que el backend exista; el backend lo implementa literalmente. Ningún campo, ruta o código de error se agrega/quita/renombra sin versionar este archivo.
 
@@ -120,6 +120,10 @@ Lista las sedes.
 }]
 ```
 
+### `GET /resources/{resourceId}`
+Devuelve el recurso y su sede para la pantalla de detalle. **200** → mismo objeto de recurso anterior, con `amenities` y `site` (`id`, `name`, `address`, `operatingHours`).
+**Errores**: `RESOURCE_NOT_FOUND`
+
 ### `GET /resources/{resourceId}/availability?date=YYYY-MM-DD`
 Slots en bloques fijos de 30 minutos.
 **200** →
@@ -213,15 +217,17 @@ Body → `{ "holdId": "hold_01" }`
 **200** → `[{ "id": "plan_pro", "name": "Pro", "monthlyCredits": 30, "price": 79.00, "currency": "PEN" }]`
 
 ### `GET /wallet/ledger?from=&to=`
-**200** →
+**200** → lista paginada:
 ```json
-[{ "id": "led_01", "type": "GRANT", "amount": 30, "balanceAfter": 30, "reservationId": null, "createdAt": "..." },
- { "id": "led_02", "type": "CONSUME", "amount": -2, "balanceAfter": 28, "reservationId": "resv_01", "createdAt": "..." }]
+{ "items": [
+  { "id": "led_01", "type": "GRANT", "amount": 30, "balanceAfter": 30, "reservationId": null, "createdAt": "..." },
+  { "id": "led_02", "type": "CONSUME", "amount": -2, "balanceAfter": 28, "reservationId": "resv_01", "createdAt": "..." }
+], "page": 1, "pageSize": 20, "total": 2 }
 ```
 `type` ∈ `GRANT | CONSUME | REFUND | EXPIRE`
 
 ### `POST /admin/billing/cycle-renewal` *(rol: sistema/admin, disparado por cron)*
-**200** → `{ "processedUsers": 340, "totalCreditsGranted": 9200 }`
+**200** → `{ "processedUsers": 340, "totalCreditsGranted": 9200, "failedUsers": [{ "userId": "u_99", "reason": "Billetera ausente" }] }`
 
 ---
 
@@ -230,7 +236,7 @@ Body → `{ "holdId": "hold_01" }`
 | Épica | Endpoints |
 |---|---|
 | 0. Autenticación y Sesión | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/password/forgot`, `POST /auth/password/reset`, `GET /auth/me` |
-| 1. Catálogo y Disponibilidad | `GET /sites`, `GET /sites/{id}/resources`, `GET /resources/{id}/availability`, `POST /admin/resources/{id}/blocks` |
+| 1. Catálogo y Disponibilidad | `GET /sites`, `GET /sites/{id}/resources`, `GET /resources/{id}`, `GET /resources/{id}/availability`, `POST /admin/resources/{id}/blocks` |
 | 2. Reserva y Concurrencia | `POST /reservations/holds`, `DELETE /reservations/holds/{id}`, `POST /reservations`, `GET /wallet/balance` |
 | 3. Ciclo de Vida y Check-in | `GET /reservations`, `POST /reservations/{id}/cancel`, `POST /reservations/{id}/checkin` |
 | 4. Membresías y Billetera | `GET /plans`, `GET /wallet/ledger`, `POST /admin/billing/cycle-renewal` |

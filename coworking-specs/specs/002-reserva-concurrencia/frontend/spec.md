@@ -38,7 +38,7 @@ Flujo de checkout de reserva: selección de slot → hold temporal con cuenta re
 
 ## Fuera de alcance
 - Selección de método de pago alterno cuando faltan créditos (queda para una épica de "paquetes extra / pago directo", no definida en el documento fuente).
-- Lógica real de expiración del hold (vive en Redis/backend); el cliente solo refleja el `expiresAt` que recibe.
+- Lógica real de expiración del hold (vive en PostgreSQL/backend); el cliente solo refleja el `expiresAt` que recibe.
 
 ## Casos borde (UI)
 - Usuario cierra el drawer de checkout manualmente antes de confirmar: se debe llamar a `DELETE /reservations/holds/{holdId}` para liberar el slot antes de tiempo (buena ciudadanía, no es obligatorio para la corrección del sistema pero mejora la disponibilidad para otros).

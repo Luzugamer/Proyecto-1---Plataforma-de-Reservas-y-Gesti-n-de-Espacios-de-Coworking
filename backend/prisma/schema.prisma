@@ -17,7 +17,16 @@ enum ResourceType {
   HOT_DESK
   DEDICATED_DESK
   MEETING_ROOM
-  EVENT_SPACE
+}
+
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
 }
 
 enum HoldStatus {
@@ -49,12 +58,10 @@ enum SubscriptionStatus {
 }
 
 enum TransactionType {
-  MONTHLY_ALLOWANCE
-  RESERVATION_CHARGE
-  CANCELLATION_REFUND
-  TOPUP_PURCHASE
-  PLAN_UPGRADE_CREDIT
-  ADMIN_ADJUSTMENT
+  GRANT
+  CONSUME
+  REFUND
+  EXPIRE
 }
 
 model User {
@@ -63,8 +70,6 @@ model User {
   email                String                @unique
   passwordHash         String
   role                 UserRole              @default(MEMBER)
-  failedLoginAttempts  Int                   @default(0)
-  lockedUntil          DateTime?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -76,8 +81,19 @@ model User {
   wallet               Wallet?
   transactions         WalletTransaction[]
   maintenanceBlocks    MaintenanceBlock[]    @relation("BlockCreator")
+  siteAssignments      SiteStaff[]
 
   @@map("users")
+}
+
+model LoginAttempt {
+  normalizedEmail String   @id
+  failedCount     Int      @default(0)
+  windowStartedAt DateTime
+  lockedUntil     DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@map("login_attempts")
 }
 
 model RefreshToken {
@@ -111,13 +127,39 @@ model Site {
   city        String
   openingTime String     @default("08:00") // Formato HH:mm
   closingTime String     @default("22:00") // Formato HH:mm
+  timezone    String     @default("America/Lima")
+  utcOffsetMinutes Int   @default(-300)
   isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   resources   Resource[]
+  operatingHours OperatingHour[]
+  staffAssignments SiteStaff[]
 
   @@map("sites")
+}
+
+model OperatingHour {
+  id        String    @id @default(uuid())
+  siteId    String
+  site      Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  dayOfWeek DayOfWeek
+  opensAt   String
+  closesAt  String
+
+  @@unique([siteId, dayOfWeek])
+  @@map("operating_hours")
+}
+
+model SiteStaff {
+  siteId String
+  userId String
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([siteId, userId])
+  @@map("site_staff")
 }
 
 model Resource {
@@ -127,7 +169,7 @@ model Resource {
   name              String
   type              ResourceType
   capacity          Int                @default(1)
-  creditsPerHour    Int                @default(1)
+  creditCostAmount  Int                @default(1)
   amenities         String[]           @default([])
   isActive          Boolean            @default(true)
   createdAt         DateTime           @default(now())
@@ -152,6 +194,7 @@ model MaintenanceBlock {
   createdByUser             User     @relation("BlockCreator", fields: [createdByUserId], references: [id])
   createdAt                 DateTime @default(now())
 
+  @@index([resourceId, startsAt, endsAt])
   @@map("maintenance_blocks")
 }
 
@@ -169,6 +212,7 @@ model Hold {
   createdAt       DateTime   @default(now())
 
   @@index([resourceId, startsAt, endsAt])
+  @@index([status, expiresAt], map: "holds_expiration_idx")
   @@map("holds")
 }
 
@@ -190,6 +234,7 @@ model Reservation {
 
   @@index([resourceId, startsAt, endsAt])
   @@index([userId, status])
+  @@index([status, startsAt], map: "reservations_no_show_idx")
   @@map("reservations")
 }
 
@@ -222,13 +267,14 @@ model Subscription {
   updatedAt          DateTime           @updatedAt
 
   @@map("subscriptions")
+  @@index([status, currentPeriodEnd], map: "subscriptions_cycle_idx")
 }
 
 model Wallet {
   id           String              @id @default(uuid())
   userId       String              @unique
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  balance      Int                 @default(10)
+  balance      Int                 @default(0)
   updatedAt    DateTime            @updatedAt
 
   transactions WalletTransaction[]
